@@ -45,68 +45,6 @@ std::pair<std::vector<int>, std::vector<std::vector<int64_t>>> function_to_optim
     return std::pair(score_result,position_result);
 }
 
-void send_to_db(double cost, const std::vector<int>& func_params,std::vector<int64_t>& best_position) {
-    
-    if (cost <= 8500){
-    // Create a timestamp
-    std::time_t timestamp = std::time(nullptr);
-    // Prepare the SQL statement
-    const char* sql = "INSERT INTO lottmax_accuracy(timestamp, cost, n_gen, params) VALUES (?, ?, ?, ?)";
-    sqlite3_stmt* stmt;
-    sqlite3* db;
-
-    int result = sqlite3_open("../accuracy.db", &db);
-        // SQL statement to create the table if it doesn't exist
-    const char* createTableSQL = R"(
-        CREATE TABLE IF NOT EXISTS lottmax_accuracy(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            cost REAL NOT NULL,
-            n_gen INTEGER NOT NULL,
-            params TEXT NOT NULL
-        )
-    )";
-    char* errMsg = nullptr;
-
-    // Execute the SQL statement to create the table if needed
-    result = sqlite3_exec(db, createTableSQL, nullptr, nullptr, &errMsg);
-    if (result != SQLITE_OK) {
-        std::cerr << "SQL error: " << errMsg << std::endl;
-        sqlite3_free(errMsg);
-        sqlite3_close(db);}
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Cannot prepare statement: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_finalize(stmt);}
-
-    // Bind values to the placeholders in the SQL statement
-    sqlite3_bind_int64(stmt, 1, timestamp);
-    sqlite3_bind_double(stmt, 2, cost);
-    sqlite3_bind_double(stmt, 3, best_position.back()); 
-    best_position.pop_back();
-    
-    // Convert parameters to a string
-    std::string params_str; 
-    for (auto param : func_params) {
-        params_str += std::to_string(param) + ",";
-    }    
-    for (auto param : best_position) {
-        params_str += std::to_string(param) + ",";
-    } 
-
-    sqlite3_bind_text(stmt, 4, params_str.c_str(), -1, SQLITE_STATIC);
-
-    // Execute the prepared statement
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        std::cerr << "Execution failed: " << sqlite3_errmsg(db) << std::endl;
-    }
-
-    // Finalize the statement
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
-}}
 
 // Function to select parents
 Matrix select_parents(const Matrix& population, const std::vector<int>& fitnesses, auto& best_position, int num_parents) {
